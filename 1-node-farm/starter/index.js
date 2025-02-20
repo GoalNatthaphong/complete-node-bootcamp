@@ -1,7 +1,8 @@
-const fs = require('fs');
-const http = require('http');
-const url = require('url');
-
+const fs = require("fs");
+const http = require("http");
+const { join } = require("path");
+const url = require("url");
+const replaceTemplate = require("./module.js/replaceTemplate");
 //////////////////////////////////////////////////////////////////
 
 // //Blocking, Synchronous way
@@ -31,27 +32,59 @@ const url = require('url');
 ///////////////////////////////////////////
 // Server
 
-const data = fs.readFileSync(`${__dirname}/dev-data/data.json`, 'utf-8');
+const tempOverview = fs.readFileSync(
+  `${__dirname}/templates/template-overview.html`,
+  "utf-8"
+);
+
+const tempCard = fs.readFileSync(
+  `${__dirname}/templates/template-card.html`,
+  "utf-8"
+);
+
+const tempProduct = fs.readFileSync(
+  `${__dirname}/templates/template-product.html`,
+  "utf-8"
+);
+
+const data = fs.readFileSync(`${__dirname}/dev-data/data.json`, "utf-8");
 const dataObj = JSON.parse(data);
 
 const server = http.createServer((req, res) => {
-  const pathName = req.url;
+  const { query, pathname } = url.parse(req.url, true);
 
-  if (pathName === '/' || pathName === '/overview') {
-    res.end('This is the OVERVIEW');
-  } else if (pathName === '/product') {
-    res.end('This is the PRODUCT');
-  } else if (pathName === '/api') {
-    res.writeHead(200, { 'Content-type': 'application/json' });
+  // Overview page
+  if (pathname === "/" || pathname === "/overview") {
+    res.writeHead(200, { "content-type": "text/html" });
+
+    const cardsHtml = dataObj
+      .map((el) => replaceTemplate(tempCard, el))
+      .join("");
+
+    const output = tempOverview.replace("{%PRODUCT_CARDS%}", cardsHtml);
+
+    res.end(output);
+
+    // Product Page
+  } else if (pathname === "/product") {
+    const product = dataObj[query.id];
+    const output = replaceTemplate(tempProduct, product);
+    res.end(output);
+
+    //API page
+  } else if (pathname === "/api") {
+    res.writeHead(200, { "Content-type": "application/json" });
     res.end(data);
+
+    // not found!
   } else {
     res.writeHead(404, {
-      'content-type': 'text/html',
+      "content-type": "text/html",
     });
-    res.end('<h1>Page not Found!</h1>');
+    res.end("<h1>Page not Found!</h1>");
   }
 });
 
-server.listen(8000, '127.0.0.1', () => {
-  console.log('Listening to requests on port 8000');
+server.listen(8000, "127.0.0.1", () => {
+  console.log("Listening to requests on port 8000");
 });
